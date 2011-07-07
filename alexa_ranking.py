@@ -36,14 +36,15 @@ class alexaBot:
         alexa_ranking = re.findall(ranking_regex, alexa_text)[0]
         alexa_title = re.findall(title_regex, alexa_text)[0]
 
-        print "Current Alexa ranking is", alexa_ranking
         return alexa_ranking, alexa_title
 
-    def find_difference(self, article_name, new_ranking):
+    def find_difference(self, article_url, new_ranking):
         try:
-            old_ranking = self.database[article_name]
+            old_ranking = self.database[article_url]
         except KeyError: # If the website is newly added.
             old_ranking = 0
+
+        print "New Alexa ranking is", new_ranking, "old was", old_ranking
 
         if old_ranking == 0:
             difference = ""
@@ -56,16 +57,15 @@ class alexaBot:
 
         return difference
 
-    def save_article(self, article_object, article_text,
+    def save_article(self, article_object, article_text, article_url,
                      old_alexa_field, new_alexa_field):
         print old_alexa_field + "\n" + new_alexa_field
         article_text = article_text.replace(old_alexa_field, new_alexa_field)
         article_object.put(article_text, comment="Bot: Updating" \
-                          "Alexa ranking ([[Wikipedia:Bots" \
-                          "/Requests for approval/OKBot 5|" \
-                          "in trial]])")
+                          "Alexa ranking ([[User talk:OsamaK/" \
+                          "AlexaBot.js|Help get more pages covered]]")
         time.sleep(10)
-        self.database[article_name] = new_ranking
+        self.database[article_url] = new_ranking
 
     def run(self):
         alexa_field_regex = "\|[ ]*alexa[ ]*=[ ]*.+[\|\n]"
@@ -81,13 +81,14 @@ class alexaBot:
             print "This seems to be the first time. No difference templete" \
                   " will be added."
             for article in articles_list:
-                self.database[article[0]] = 0
+                self.database[str(article[1])] = 0
 
         print self.database #FIXME: REMOVE
 
         for article in articles_list:
-            article_name = str(article[0])
-            alexa_url = "http://www.alexa.com/siteinfo/" + article[1]
+            article_name = article[0]
+            article_url = str(article[1])
+            alexa_url = "http://www.alexa.com/siteinfo/" + article_url
             article_object = wikipedia.Page(self.site, article_name)
 
             print "Fetching %s page on Wikipedia.." % article_name
@@ -105,7 +106,7 @@ class alexaBot:
 
             alexa_ranking, alexa_title = self.get_alexa_ranking(alexa_url)
             new_ranking = int(alexa_ranking.replace(',', ''))
-            difference = self.find_difference(article_name, new_ranking)
+            difference = self.find_difference(article_url, new_ranking)
 
             old_field_ranking = re.findall(old_ranking_regex, old_alexa_field)[0]
             new_field_ranking = "%(diff)s%(ranking)s ({{as of|%(year)d|%(month)d|%(day)d" \
@@ -120,8 +121,9 @@ class alexaBot:
                               "month_name": self.month_names[self.now.month-1]}
 
             new_alexa_field = old_alexa_field.replace(old_field_ranking, new_field_ranking)
+            print new_alexa_field #FIXME: Remove!
 
-            self.save_article(article_object, article_text,
+            self.save_article(article_object, article_text, article_url,
                               old_alexa_field, new_alexa_field)
 
         self.database.close()
