@@ -24,7 +24,7 @@ class alexaBot:
         list_page = wikipedia.Page(self.site,'User:OsamaK/AlexaBot.js').get()
         articles_list = re.findall(list_regex, list_page)
 
-        print articles_list #FIXME: REMOVE
+        #print articles_list #FIXME: REMOVE
         return articles_list
 
     def get_alexa_ranking(self, alexa_url):
@@ -32,7 +32,16 @@ class alexaBot:
         title_regex = '\<title\>(.+)\</title\>'
 
         print "Fetching", alexa_url
-        alexa_text = urllib.urlopen(alexa_url).read()
+        while True:
+            try:
+                alexa_text = urllib.urlopen(alexa_url).read()
+                break
+            except IOError:
+                print "Error fetching Alexa page. Retyring in 10" \
+                      " seconds."
+                time.sleep(10)
+                continue
+            
         alexa_ranking = re.findall(ranking_regex, alexa_text)[0]
         alexa_title = re.findall(title_regex, alexa_text)[0]
 
@@ -92,7 +101,11 @@ class alexaBot:
             article_object = wikipedia.Page(self.site, article_name)
 
             print "Fetching %s page on Wikipedia.." % article_name
-            article_text = article_object.get()
+            try:
+                article_text = article_object.get()
+            except wikipedia.pywikibot.exceptions.NoPage:
+                print "Page %s does not exist." % article_name
+                continue
 
             if not re.search(reference_regex, article_text, flags=re.IGNORECASE):
                 print "No refereence list in", article_name
@@ -121,7 +134,7 @@ class alexaBot:
                               "month_name": self.month_names[self.now.month-1]}
 
             new_alexa_field = old_alexa_field.replace(old_field_ranking, new_field_ranking)
-            print new_alexa_field #FIXME: Remove!
+            #print new_alexa_field #FIXME: Remove!
 
             self.save_article(article_object, article_text, article_url,
                               old_alexa_field, new_alexa_field)
@@ -129,8 +142,8 @@ class alexaBot:
         self.database.close()
 
 if __name__ == '__main__':
-  try:
-    bot = alexaBot()
-    bot.run()
-  finally:
-    wikipedia.stopme()
+    try:
+        bot = alexaBot()
+        bot.run()
+    finally:
+        wikipedia.stopme()
