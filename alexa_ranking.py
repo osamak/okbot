@@ -68,7 +68,7 @@ class alexaBot:
 
     def save_article(self, article_object, article_text, article_url,
                      old_alexa_field, new_alexa_field):
-        print old_alexa_field + "\n" + new_alexa_field
+        #print old_alexa_field + "\n" + new_alexa_field #FIXME: REMOVE
         article_text = article_text.replace(old_alexa_field, new_alexa_field)
         article_object.put(article_text, comment="Bot: Updating" \
                           "Alexa ranking ([[User talk:OsamaK/" \
