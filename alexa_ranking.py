@@ -1,6 +1,13 @@
 # Copyright (C) Osama Khalid 2011. Released under AGPLv3+.
 # Please wirte your feedbacks to [[User_talk:OsamaK]].
 
+# This script updates Alexa rankings depending on a list on
+# [[User:OsamaK/AlexaBot.js]]. The syntax of the list is:
+#     "Example (website) example.com"
+# It could optionally include the "local" flag to fetch the local
+# Alexa ranking (the one beside the 'Global ranking'):
+#     "Example (website) example.com local"
+
 import re
 import urllib
 import shelve
@@ -20,15 +27,17 @@ class alexaBot:
         self.site = wikipedia.getSite()
 
     def get_article_list(self):
-        list_regex = '"(.+)" (.+)'
+        list_regex = '"(.+)" ([^ ]+)[ ]?(local)?'
         list_page = wikipedia.Page(self.site,'User:OsamaK/AlexaBot.js').get()
         articles_list = re.findall(list_regex, list_page)
 
         #print articles_list #FIXME: REMOVE
         return articles_list
 
-    def get_alexa_ranking(self, alexa_url):
+    def get_alexa_ranking(self, alexa_url, article):
         ranking_regex  = '([\d,]+)[ \t]+\</div\>\n\<div class="label">Global Rank'
+        local_ranking_regex = '([\d,]+)[ \t]+\</div\>\n\<div class="label"\>' \
+                              'Rank in\n\<a href=\'[^\']+\' title="([\w ]+)"'
         title_regex = '\<title\>(.+)\</title\>'
 
         print "Fetching", alexa_url
@@ -44,8 +53,23 @@ class alexaBot:
             
         alexa_ranking = re.findall(ranking_regex, alexa_text)[0]
         alexa_title = re.findall(title_regex, alexa_text)[0]
+        if 'local' in article:
+            alexa_local_ranking, alexa_local_country = re.findall(
+                              local_ranking_regex, alexa_text)[0]
+            local_ranking_text = "; {{Flagicon|%(country)s}} %(ranking)s" % \
+                                 {"country": alexa_local_country,
+                                  "ranking": alexa_local_ranking}
+        else:
+            local_ranking_text = ""
 
-        return alexa_ranking, alexa_title
+        new_ranking = int(alexa_ranking.replace(',', ''))
+        difference = self.find_difference(str(article[1]), new_ranking)
+
+        ranking_text = "%(diff)s%(g_ranking)s%(l_ranking)s" % \
+                      {"diff": difference, "g_ranking": alexa_ranking,
+                       "l_ranking": local_ranking_text}
+
+        return ranking_text, alexa_title, new_ranking
 
     def find_difference(self, article_url, new_ranking):
         try:
@@ -67,8 +91,7 @@ class alexaBot:
         return difference
 
     def save_article(self, article_object, article_text, article_url,
-                     old_alexa_field, new_alexa_field):
-        #print old_alexa_field + "\n" + new_alexa_field #FIXME: REMOVE
+                       old_alexa_field, new_alexa_field, new_ranking):
         article_text = article_text.replace(old_alexa_field, new_alexa_field)
         article_object.put(article_text, comment="Bot: Updating" \
                           "Alexa ranking ([[User talk:OsamaK/" \
@@ -117,27 +140,27 @@ class alexaBot:
                 print "No alexa field in", article_name
                 continue
 
-            alexa_ranking, alexa_title = self.get_alexa_ranking(alexa_url)
-            new_ranking = int(alexa_ranking.replace(',', ''))
-            difference = self.find_difference(article_url, new_ranking)
+            ranking_text, alexa_title, new_ranking = self.get_alexa_ranking(
+                                                   alexa_url, article)
 
             old_field_ranking = re.findall(old_ranking_regex, old_alexa_field)[0]
-            new_field_ranking = "%(diff)s%(ranking)s ({{as of|%(year)d|%(month)d|%(day)d" \
+            new_field_ranking = "%(ranking_text)s ({{as of|%(year)d|%(month)d|%(day)d" \
                                 "|alt=%(month_name)s %(year)d}})<ref name=\"alexa\">" \
                                 "{{cite web|url= %(url)s |title= %(title)s " \
                                 "| publisher= [[Alexa Internet]] " \
                                 "|accessdate= %(year)d-%(month)02d-%(day)02d }}</ref>" \
                                 "<!--Updated monthly by OKBot.-->" % \
-                             {"diff": difference, "ranking": alexa_ranking,
-                              "title": alexa_title, "url": alexa_url, "year": self.now.year,
+                             {"ranking_text": ranking_text, "title": alexa_title,
+                              "url": alexa_url, "year": self.now.year,
                               "month": self.now.month, "day": self.now.day,
                               "month_name": self.month_names[self.now.month-1]}
 
             new_alexa_field = old_alexa_field.replace(old_field_ranking, new_field_ranking)
-            #print new_alexa_field #FIXME: Remove!
+            #print new_alexa_field #FIXME: REMOVE
 
             self.save_article(article_object, article_text, article_url,
-                              old_alexa_field, new_alexa_field)
+                              old_alexa_field, new_alexa_field,
+                              new_ranking)
 
         self.database.close()
 
