@@ -27,7 +27,7 @@ class alexaBot:
         self.site = wikipedia.getSite()
 
     def get_article_list(self):
-        list_regex = '"(.+)" ([^ ]+)[ ]?(local)?'
+        list_regex = '"(.+)" ([^ \n]+)[ ]?(local)?'
         list_page = wikipedia.Page(self.site,'User:OsamaK/AlexaBot.js').get()
         articles_list = re.findall(list_regex, list_page)
 
@@ -50,7 +50,7 @@ class alexaBot:
                       " seconds."
                 time.sleep(10)
                 continue
-            
+
         alexa_ranking = re.findall(ranking_regex, alexa_text)[0]
         alexa_title = re.findall(title_regex, alexa_text)[0]
         if 'local' in article:
@@ -114,8 +114,6 @@ class alexaBot:
                   " will be added."
             for article in articles_list:
                 self.database[str(article[1])] = 0
-
-        print self.database #FIXME: REMOVE
 
         for article in articles_list:
             article_name = article[0]
