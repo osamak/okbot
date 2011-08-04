@@ -93,7 +93,7 @@ class alexaBot:
     def save_article(self, article_object, article_text, article_url,
                        old_alexa_field, new_alexa_field, new_ranking):
         article_text = article_text.replace(old_alexa_field, new_alexa_field)
-        article_object.put(article_text, comment="Bot: Updating" \
+        article_object.put(article_text, comment="Bot: Updating " \
                           "Alexa ranking ([[User talk:OsamaK/" \
                           "AlexaBot.js|Help get more pages covered]]")
         time.sleep(10)
@@ -138,8 +138,12 @@ class alexaBot:
                 print "No alexa field in", article_name
                 continue
 
-            ranking_text, alexa_title, new_ranking = self.get_alexa_ranking(
+            try:
+                ranking_text, alexa_title, new_ranking = self.get_alexa_ranking(
                                                    alexa_url, article)
+            except IndexError:
+                print "Couldn't find any ranking data on", alexa_url
+                continue
 
             old_field_ranking = re.findall(old_ranking_regex, old_alexa_field)[0]
             new_field_ranking = "%(ranking_text)s ({{as of|%(year)d|%(month)d|%(day)d" \
