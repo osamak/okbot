@@ -29,6 +29,8 @@ class alexaBot:
     def get_article_list(self):
         list_regex = '"(.+)" ([^ \n]+)[ ]?(local)?'
         list_page = wikipedia.Page(self.site,'User:OsamaK/AlexaBot.js').get()
+        #list_page = open('alexa_ranking.list').read() # Alternative list source.
+
         articles_list = re.findall(list_regex, list_page)
 
         #print articles_list #FIXME: REMOVE
@@ -131,6 +133,8 @@ class alexaBot:
                 continue
             except wikipedia.IsRedirectPage:
                 new_page_name = article_object.getRedirectTarget()
+                article_name = new_page_name
+
                 article_object = wikipedia.Page(self.site, article_name)
 
             if not re.search(reference_regex, article_text, flags=re.IGNORECASE):
