@@ -132,10 +132,9 @@ class alexaBot:
                 print "Page %s does not exist." % article_name
                 continue
             except wikipedia.IsRedirectPage:
-                new_page_name = article_object.getRedirectTarget()
-                article_name = new_page_name
-
-                article_object = wikipedia.Page(self.site, article_name)
+                article_object = article_object.getRedirectTarget()
+                article_name = article_object.title()
+                article_text = article_object.get()
 
             if not re.search(reference_regex, article_text, flags=re.IGNORECASE):
                 print "No refereence list in", article_name
