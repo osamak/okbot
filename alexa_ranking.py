@@ -93,9 +93,11 @@ class alexaBot:
     def save_article(self, article_object, article_text, article_url,
                        old_alexa_field, new_alexa_field, new_ranking):
         article_text = article_text.replace(old_alexa_field, new_alexa_field)
-        article_object.put(article_text, comment="Bot: Updating " \
-                          "Alexa ranking ([[User talk:OsamaK/" \
-                          "AlexaBot.js|Help get more pages covered]]")
+        edit_summery = "Bot: Updating Alexa ranking ([[User talk:" \
+                   "OsamaK/AlexaBot.js|Help get more pages covered]]"
+
+        article_object.put(article_text, comment=edit_summery)
+
         time.sleep(10)
         self.database[article_url] = new_ranking
 
@@ -124,9 +126,12 @@ class alexaBot:
             print "Fetching %s page on Wikipedia.." % article_name
             try:
                 article_text = article_object.get()
-            except wikipedia.pywikibot.exceptions.NoPage:
+            except wikipedia.NoPage:
                 print "Page %s does not exist." % article_name
                 continue
+            except wikipedia.IsRedirectPage:
+                new_page_name = article_object.getRedirectTarget()
+                article_object = wikipedia.Page(self.site, article_name)
 
             if not re.search(reference_regex, article_text, flags=re.IGNORECASE):
                 print "No refereence list in", article_name
@@ -160,9 +165,14 @@ class alexaBot:
             new_alexa_field = old_alexa_field.replace(old_field_ranking, new_field_ranking)
             #print new_alexa_field #FIXME: REMOVE
 
-            self.save_article(article_object, article_text, article_url,
-                              old_alexa_field, new_alexa_field,
-                              new_ranking)
+            try:
+                self.save_article(article_object, article_text,
+                                  article_url, old_alexa_field,
+                                  new_alexa_field, new_ranking)
+            except wikipedia.IsRedirectPage:
+                print "Weird error on %s. This shouldn't be a " \
+                    "redirect!" % article_name
+                continue
 
         self.database.close()
 
