@@ -84,11 +84,11 @@ class alexaBot:
         if old_ranking == 0:
             difference = ""
         elif old_ranking > new_ranking:
-            difference = "{{increase}} "
+            difference = "{{DecreasePositive}} "
         elif old_ranking < new_ranking:
-            difference = "{{decrease}} "
+            difference = "{{IncreaseNegative}} "
         elif old_ranking == new_ranking:
-            difference = "{{steady}} "
+            difference = "{{Steady}} "
 
         return difference
 
