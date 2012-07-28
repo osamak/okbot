@@ -1,5 +1,5 @@
 # Copyright (C) Osama Khalid 2011. Released under AGPLv3+.
-# Please wirte your feedbacks to [[User_talk:OsamaK]].
+# Please wirte your feedback to [[User_talk:OsamaK]].
 
 # This script updates Alexa rankings depending on a list on
 # [[User:OsamaK/AlexaBot.js]]. The syntax of the list is:
@@ -58,7 +58,7 @@ class alexaBot:
         if 'local' in article:
             alexa_local_ranking, alexa_local_country = re.findall(
                               local_ranking_regex, alexa_text)[0]
-            local_ranking_text = "; {{Flagicon|%(country)s}} %(ranking)s" % \
+            local_ranking_text = "; %(country)s: %(ranking)s" % \
                                  {"country": alexa_local_country,
                                   "ranking": alexa_local_ranking}
         else:
@@ -104,8 +104,9 @@ class alexaBot:
         self.database[article_url] = new_ranking
 
     def run(self):
-        alexa_field_regex = "\|[ ]*alexa[ ]*=[ ]*.+[\|\n]"
-        old_ranking_regex = "\|[ ]*alexa[ ]*=[ ]*(.+)[\|\n]"
+        alexa_field_regex = "\| *alexa *= *.+[\|\n]"
+        old_ranking_regex = "\| *alexa *= *(.+)[\|\n]"
+        url_field_regex = "\| *url *= *.+?[\|\n]"
         reference_regex = "(\<references|\{\{(reference|refs|re|listaref" \
                           "|ref-list|reflist|footnotesmall|reference list" \
                           "|ref list))"
@@ -140,11 +141,19 @@ class alexaBot:
                 print "No refereence list in", article_name
                 continue
 
+            # If there is no Alexa field, add one under the URL field
+            # (because the url field is a must for articles about websites)
             try:
                 old_alexa_field = re.findall(alexa_field_regex, article_text)[0]
             except IndexError:
-                print "No alexa field in", article_name
-                continue
+                try:
+                    url_field = re.findall(url_field_regex, article_text)[0]
+                except IndexError:
+                    print "No alexa or url fields in", article_name
+                    continue
+                old_alexa_field = "| alexa = "
+                article_text = article_text.replace(url_field, \
+                                       url_field + old_alexa_field)
 
             try:
                 ranking_text, alexa_title, new_ranking = self.get_alexa_ranking(
@@ -153,7 +162,6 @@ class alexaBot:
                 print "Couldn't find any ranking data on", alexa_url
                 continue
 
-            old_field_ranking = re.findall(old_ranking_regex, old_alexa_field)[0]
             new_field_ranking = "%(ranking_text)s ({{as of|%(year)d|%(month)d|%(day)d" \
                                 "|alt=%(month_name)s %(year)d}})<ref name=\"alexa\">" \
                                 "{{cite web|url= %(url)s |title= %(title)s " \
@@ -165,8 +173,11 @@ class alexaBot:
                               "month": self.now.month, "day": self.now.day,
                               "month_name": self.month_names[self.now.month-1]}
 
-            new_alexa_field = old_alexa_field.replace(old_field_ranking, new_field_ranking)
-            #print new_alexa_field #FIXME: REMOVE
+            try:
+                old_field_ranking = re.findall(old_ranking_regex, old_alexa_field)[0]
+                new_alexa_field = old_alexa_field.replace(old_field_ranking, new_field_ranking)
+            except IndexError: # If the Alexa field wasn't there or was empty.
+                new_alexa_field = old_alexa_field.strip() + " " + new_field_ranking + "\n"
 
             try:
                 self.save_article(article_object, article_text,
