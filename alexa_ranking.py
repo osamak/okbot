@@ -106,7 +106,7 @@ class alexaBot:
     def run(self):
         alexa_field_regex = "\| *alexa *= *.+[\|\n]"
         old_ranking_regex = "\| *alexa *= *(.+)[\|\n]"
-        url_field_regex = "\| *url *= *.+?[\|\n]"
+        url_field_regex = "\| *url *= *\[.+?[\|\n]"
         reference_regex = "(\<references|\{\{(reference|refs|re|listaref" \
                           "|ref-list|reflist|footnotesmall|reference list" \
                           "|ref list))"
