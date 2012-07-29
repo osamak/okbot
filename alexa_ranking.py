@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 # Copyright (C) Osama Khalid 2011. Released under AGPLv3+.
 # Please wirte your feedback to [[User_talk:OsamaK]].
 
@@ -96,7 +97,7 @@ class alexaBot:
                        old_alexa_field, new_alexa_field, new_ranking):
         article_text = article_text.replace(old_alexa_field, new_alexa_field)
         edit_summery = "Bot: Updating Alexa ranking ([[User talk:" \
-                   "OsamaK/AlexaBot.js|Help get more pages covered]]"
+                   "OsamaK/AlexaBot.js|Help get more pages covered]])"
 
         article_object.put(article_text, comment=edit_summery)
 
