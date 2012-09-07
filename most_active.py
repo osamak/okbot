@@ -21,7 +21,7 @@ class mostActive:
         self.site = wikipedia.getSite('ar', 'wikipedia')
         self.page = wikipedia.Page(self.site, u"ويكيبيديا:قائمة الويكيبيديين حسب إضافاتهم")
         self.now = datetime.datetime.now()
-        self.last_week_date = datetime.datetime.strftime(self.now -  datetime.timedelta(days=6), "%Y-%m-%dT00:00:00Z")
+        self.last_week_date = datetime.datetime.strftime(self.now - datetime.timedelta(days=6), "%Y-%m-%dT00:00:00Z")
         self.tomorrow_date = datetime.datetime.strftime(self.now + datetime.timedelta(days=1), "%Y-%m-%dT00:00:00Z")
 
     def get_api(self, predata): # (C) 2008 Betacommand, MIT License
@@ -78,7 +78,7 @@ class mostActive:
         return change_list, user_list
 
     def put_list(self, change_list, user_list):
-        wiki_list = u"""''آخر تحديث للقائمة أجرته [[مستخدم:{{نسخ:Currentuser}}|{{نسخ:Currentuser}}]] عند الساعة {{نسخ:وقت_حالي}} في يوم {{نسخ:يوم}} {{نسخ:اسم_الشهر_الحالي}} {{نسخ:عام}}''
+        wiki_list = u"""''آخر تحديث للقائمة أجرته [[مستخدم:{{نسخ:مستخدم_المراجعة}}|{{نسخ:مستخدم_المراجعة}}]] عند الساعة {{نسخ:وقت_حالي}} في يوم {{نسخ:يوم}} {{نسخ:اسم_الشهر_الحالي}} {{نسخ:عام}}''
 
 هذه القائمة تعرض أكثر مساهمي الموسوعة إضافة لمقالاتها خلال الأسبوع الماضي (دون حساب مساهمات النطاقات الأخرى ودون حساب الحذف).
 {| class="wikitable"  style="margin: 1em auto 1em auto;"
