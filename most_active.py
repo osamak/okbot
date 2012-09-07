@@ -37,13 +37,13 @@ class mostActive:
     def get_list(self, rcstart):
         rcstart_continue = None
         
-        predata = {#api.php?action=query&list=recentchanges&format=jsonfm&rclimit=5000&rcnamespace=0&rcprop=user|sizes|timestamp&rctype=edit|new&rcshow=!bot|!anon|!redirect&rcstart=2012-09-07T00:00:00Z&rcend=2012-08-31T00:00:00Z
+        predata = {#api.php?action=query&list=recentchanges&format=jsonfm&rclimit=5000&rcnamespace=0&rcprop=user|userid|sizes|timestamp|comment&rctype=edit|new&rcshow=!bot|!anon|!redirect&rcstart=2012-09-07T00:00:00Z&rcend=2012-08-31T00:00:00Z
          'action': 'query',
          'list': 'recentchanges',
          'format':'json',
          'rclimit':'5000',
          'rcnamespace' : '0',
-         'rcprop' : 'user|userid|sizes|timestamp',
+         'rcprop' : 'user|userid|sizes|timestamp|comment',
          'rctype': 'edit|new',
          'rcshow':'!bot|!anon|!redirect',
          'rcstart': rcstart,
@@ -69,10 +69,14 @@ class mostActive:
 
         for change in final_list:
             diff = change['newlen'] - change['oldlen']
-            if diff > 0:
+            comment = change['comment']
+
+            if diff > 0 and not (u"الرجوع عن التعديل" in comment or \
+                                 u"استرجاع تعديلات" in comment or \
+                                 u"واستعادة المراجعة" in comment):
                 user = change['user']
                 userid = str(change['userid'])
-                change_list[userid] = change_list.get('userid', 0) + diff
+                change_list[userid] = change_list.get(userid, 0) + diff
                 user_list[userid] = user
 
         return change_list, user_list
@@ -108,7 +112,7 @@ class mostActive:
         change_list, user_list = self.calculate(final_list)
         sorted_change_list = sorted(change_list.iteritems(),
                                     key=operator.itemgetter(1),
-                                    reverse=True)[:30]
+                                    reverse=True)[:50]
 
         self.put_list(sorted_change_list, user_list)
 
