@@ -30,7 +30,8 @@ class alexaBot:
     def get_article_list(self):
         list_regex = '"(.+)" ([^ \n]+)[ ]?(local)?'
         list_page = wikipedia.Page(self.site,'User:OsamaK/AlexaBot.js').get()
-        #list_page = open('alexa_ranking.list').read() # Alternative list source.
+        #import codecs
+        #list_page = codecs.open('alexa_list.en', encoding="utf-8").read() # Alternative list source.
 
         articles_list = re.findall(list_regex, list_page)
 
@@ -125,21 +126,28 @@ class alexaBot:
             article_name = article[0]
             article_url = str(article[1])
             alexa_url = "http://www.alexa.com/siteinfo/" + article_url
-            article_object = wikipedia.Page(self.site, article_name)
 
-            print "Fetching %s page on Wikipedia.." % article_name
+            try:
+                article_object = wikipedia.Page(self.site, article_name)
+            except UnicodeDecodeError: #FIXME: Unknown error
+                continue
+
+            print u"Fetching %s page on Wikipedia.." % article_name
             try:
                 article_text = article_object.get()
             except wikipedia.NoPage:
-                print "Page %s does not exist." % article_name
+                print u"Page %s does not exist." % article_name
                 continue
             except wikipedia.IsRedirectPage:
                 article_object = article_object.getRedirectTarget()
                 article_name = article_object.title()
-                article_text = article_object.get()
-
+                if "#" in article_name:
+                    print u"Page %s does not exist." % article_name #Skip sections
+                    continue
+                article_text = article_object.get()                    
+                
             if not re.search(reference_regex, article_text, flags=re.IGNORECASE):
-                print "No refereence list in", article_name
+                print u"No refereence list in", article_name
                 continue
 
             # If there is no Alexa field, add one under the URL field
@@ -150,7 +158,7 @@ class alexaBot:
                 try:
                     url_field = re.findall(url_field_regex, article_text)[0]
                 except IndexError:
-                    print "No alexa or url fields in", article_name
+                    print u"No alexa or url fields in", article_name
                     continue
                 old_alexa_field = "| alexa = "
                 article_text = article_text.replace(url_field, \
@@ -163,12 +171,12 @@ class alexaBot:
                 print "Couldn't find any ranking data on", alexa_url
                 continue
 
-            new_field_ranking = "%(ranking_text)s ({{as of|%(year)d|%(month)d|%(day)d" \
-                                "|alt=%(month_name)s %(year)d}})<ref name=\"alexa\">" \
-                                "{{cite web|url= %(url)s |title= %(title)s " \
-                                "| publisher= [[Alexa Internet]] " \
-                                "|accessdate= %(year)d-%(month)02d-%(day)02d }}</ref>" \
-                                "<!--Updated monthly by OKBot.-->" % \
+            new_field_ranking = u"%(ranking_text)s ({{as of|%(year)d|%(month)d|%(day)d" \
+                                u"|alt=%(month_name)s %(year)d}})<ref name=\"alexa\">" \
+                                u"{{cite web|url= %(url)s |title= %(title)s " \
+                                u"| publisher= [[Alexa Internet]] " \
+                                u"|accessdate= %(year)d-%(month)02d-%(day)02d }}</ref>" \
+                                u"<!--Updated monthly by OKBot.-->" % \
                              {"ranking_text": ranking_text, "title": alexa_title,
                               "url": alexa_url, "year": self.now.year,
                               "month": self.now.month, "day": self.now.day,
@@ -176,6 +184,9 @@ class alexaBot:
 
             try:
                 old_field_ranking = re.findall(old_ranking_regex, old_alexa_field)[0]
+                #If old_field_ranking is an empty space:
+                if not old_field_ranking.strip():
+                    raise IndexError
                 new_alexa_field = old_alexa_field.replace(old_field_ranking, new_field_ranking)
             except IndexError: # If the Alexa field wasn't there or was empty.
                 new_alexa_field = old_alexa_field.strip() + " " + new_field_ranking + "\n"
@@ -185,8 +196,8 @@ class alexaBot:
                                   article_url, old_alexa_field,
                                   new_alexa_field, new_ranking)
             except wikipedia.IsRedirectPage:
-                print "Weird error on %s. This shouldn't be a " \
-                    "redirect!" % article_name
+                print u"Weird error on %s. This shouldn't be a " \
+                    u"redirect!" % article_name
                 continue
 
         self.database.close()
