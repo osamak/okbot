@@ -9,9 +9,11 @@
 # Alexa ranking (the one beside the 'Global ranking'):
 #     "Example (website)" example.com local
 
+import codecs
 import re
 import urllib
 import shelve
+import sys
 import time
 from datetime import datetime
 
@@ -20,6 +22,7 @@ import wikipedia
 
 class alexaBot:
     def __init__(self):
+        sys.stdout = codecs.getwriter('utf8')(sys.stdout)
         self.database = shelve.open('alexa_rankings_ar.db')
         self.now = datetime.now()
         self.month_names = [u"يناير", u"فبراير", u"مارس", u"أبريل",
@@ -30,7 +33,6 @@ class alexaBot:
     def get_article_list(self):
         list_regex = u'"(.+)" ([^ \n]+)[ ]?(local)?'
         list_page = wikipedia.Page(self.site,'User:OsamaK/AlexaBot.js').get()
-        #import codecs
         #list_page = codecs.open('alexa_list.ar', encoding='utf-8').read() # Alternative list source.
 
         articles_list = re.findall(list_regex, list_page)
@@ -39,9 +41,8 @@ class alexaBot:
         return articles_list
 
     def get_alexa_ranking(self, alexa_url, article):
-        ranking_regex  = u'([\d,]+)[\s]+\</div\>\n\<div class="label">Global Rank'
-        local_ranking_regex = u'([\d,]+)[\s]+\</div\>\n\<div class="label"\>' \
-                              u'Rank in\n\<a href=\'[^\']+\' title="([\w ]+)"'
+        ranking_regex  = "alt='Global rank icon'><strong class=\"metricsUrl font-big2 valign\"><a href=\"[^\"]+\">([\d,]+)</a></strong>"
+        local_ranking_regex = "alt='([\w ]+?) Flag'><strong class=\"metricsUrl font-big2 valign\"><a href=\"[^\"]+\">([\d,]+)</a></strong>"
         title_regex = '\<title\>(.+)\</title\>'
 
         print "Fetching", alexa_url
