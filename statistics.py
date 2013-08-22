@@ -24,11 +24,10 @@
 
 import cPickle
 import datetime
+import json
 import time
 
-import simplejson
 import wikipedia
-
 
 class StatisticsBot:
     def __init__(self):
@@ -71,7 +70,7 @@ class StatisticsBot:
             except wikipedia.ServerError, e:
                 wikipedia.output(u'Warning! %s: %s' % (self.site, e))
                 continue
-            data = simplejson.loads(json)
+            data = json.loads(json)
             return data
 
     def get_meta_stats(self):

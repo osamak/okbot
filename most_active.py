@@ -13,7 +13,7 @@ import datetime
 import operator
 import pickle
 import time
-import json as simplejson
+import json
 import wikipedia
 
 class mostActive:
@@ -31,7 +31,7 @@ class mostActive:
             except wikipedia.ServerError, e:
                 wikipedia.output(u'Warning! %s: %s' % (site, e))
                 continue
-            data = simplejson.loads(json)
+            data = json.loads(json)
             return data
 
     def get_list(self, rcstart):
@@ -57,7 +57,7 @@ class mostActive:
 
         if "query-continue" in raw_list:
             print raw_list["query-continue"] #FIXME: REMOVE
-            rcstart_continue = raw_list["query-continue"]["recentchanges"]["rcstart"]
+            rcstart_continue = raw_list["query-continue"]["recentchanges"]["rccontinue"]
 
         rc_list = raw_list["query"]["recentchanges"]
 
@@ -106,7 +106,7 @@ class mostActive:
         final_list = rc_list
 
         while rcstart != None:
-            rc_list, rcstart = self.get_list(rcstart)
+            rc_list, rcstart = self.get_list(rcstart.split("|")[0])
             final_list += rc_list
 
         change_list, user_list = self.calculate(final_list)
