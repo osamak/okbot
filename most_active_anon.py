@@ -29,11 +29,11 @@ class mostActive:
     def get_api(self, predata): # (C) 2008 Betacommand, MIT License
         while True:
             try:
-                response, json = self.site.postForm(self.site.apipath(), predata)
+                response, json_data = self.site.postForm(self.site.apipath(), predata)
             except wikipedia.ServerError, e:
                 wikipedia.output(u'Warning! %s: %s' % (site, e))
                 continue
-            data = json.loads(json)
+            data = json.loads(json_data)
             return data
 
     def get_list(self, rcstart):
