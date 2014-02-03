@@ -53,7 +53,6 @@ class alexaBot:
             except IOError:
                 print "Error fetching Alexa page. Retyring in 10" \
                       " seconds."
-                time.sleep(10)
                 continue
 
         alexa_ranking = re.findall(ranking_regex, alexa_text)[0]
@@ -193,6 +192,8 @@ class alexaBot:
                 print u"Weird error on %s. This shouldn't be a " \
                     u"redirect!" % article_name
                 continue
+            except wikipedia.LockedPage:
+                print u"%s is locked!" % article_name
 
         self.database.close()
 

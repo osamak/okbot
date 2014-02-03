@@ -103,7 +103,6 @@ class alexaBot:
 
         article_object.put(article_text, comment=edit_summery)
 
-        time.sleep(10)
         self.database[article_url] = new_ranking
 
     def run(self):
@@ -200,6 +199,8 @@ class alexaBot:
                 print u"Weird error on %s. This shouldn't be a " \
                     u"redirect!" % article_name
                 continue
+            except wikipedia.LockedPage:
+                print u"%s is locked!" % article_name
 
         self.database.close()
 
