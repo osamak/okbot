@@ -1,0 +1,7 @@
+خاص:*
+Special:*
+index.html
+الصفحة_الرئيسية
+Chsearch.php
+chsearch.php
+
