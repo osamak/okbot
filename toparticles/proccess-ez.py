@@ -17,6 +17,7 @@ import codecs
 import urllib
 import smtplib
 import sys
+import sqlite3
 import time
 
 
@@ -28,10 +29,21 @@ class ProcessEZ:
         self.smtp_password = ''
         self.smtp_to = ''
         self.smtp_from = ''
-        # END OF USER CONFIGURATION
+
+        # COUNTERS
         self.all_page_views = {}
         self.skipped_counts = 0
         self.bad_counts = 0
+
+        # DATABASE
+        db_filename = time.strftime('process-ez-%Y-%m-%d.sql')
+        self.db_conn = sqlite3.connect(db_filename)
+        self.db_conn.row_factory = sqlite3.Row
+        self.cursor = self.db_conn.cursor()
+        self.cursor.execute("CREATE TABLE articles (title TEXT UNIQUE, views INTEGER);")
+        self.db_conn.commit()
+
+        # FILES
         try:
             self.filter_file = codecs.open('filtered_titles.txt', 'r', encoding='utf-8')
         except IOError:
@@ -53,51 +65,61 @@ class ProcessEZ:
                         self.bad_counts += 1
                         continue
                 page_views = int(article_data[2])
-                self.all_page_views[title] = self.all_page_views.get(title, 0) + page_views
+                previous_pageviews_query = self.cursor.execute('SELECT views FROM articles WHERE title=?', (title,)).fetchone()
+                if previous_pageviews_query:
+                    new_pageviews = previous_pageviews_query['views'] + page_views
+                    self.cursor.execute("UPDATE articles SET views=? WHERE title=?", (new_pageviews, title))
+                else:
+                    self.cursor.execute("INSERT INTO articles VALUES (?, ?)", (title, page_views))
 
-            # To release some memory, filter after every scanned file.
-            print "Filtering %s results..." % filename
-            self.filter_titles()
+            self.db_conn.commit()
 
     def filter_titles(self):
         for line in self.filter_file:
             rule = line.strip()
             if rule.endswith('*'):
                 title_filter = rule.rstrip('*')
-                # We can as well just scan the directory itself, but
-                # then we won't be able to delete any item.
-                for title in self.all_page_views.keys():
-                    if title.startswith(title_filter):
-                        #print "Filtering out %s." % title
-                        del self.all_page_views[title]
-                        self.skipped_counts += 1
+                filtered_count = self.cursor.execute("SELECT count() FROM articles WHERE title LIKE ?", (title_filter + u"%",)).fetchone()[0]
+
+                if title_filter:
+                    self.skipped_counts += filtered_count
+                    print u"Filtering %d titles under %s..." % (filtered_count, rule)
+                    self.cursor.execute("DELETE FROM articles WHERE title LIKE ?", (title_filter + u"%",))
+                    self.db_conn.commit()
+                else:
+                    print "Skipping rule %s.  No results found." % rule
+
             elif rule.startswith('*'):
                 title_filter = rule.lstrip('*')
-                for title in self.all_page_views.keys():
-                    if title.endswith(title_filter):
-                        #print "Filtering out %s." % title
-                        del self.all_page_views[title]
-                        self.skipped_counts += 1
+                filtered_count = self.cursor.execute("SELECT count() FROM articles WHERE title LIKE ?", (u"%" + title_filter,)).fetchone()[0]
+
+                if title_filter:
+                    self.skipped_counts += filtered_count
+                    print u"Filtering %d titles under %s..." % (filtered_count, rule)
+                    self.cursor.execute("DELETE FROM articles WHERE title LIKE ?", (u"%" + title_filter,))
+                    self.db_conn.commit()
+                else:
+                    print "Skipping rule %s.  No results found." % rule
+
             elif rule: # if rule isn't an empty line
-                for title in self.all_page_views.keys():
-                    if title == rule:
-                        #print "Filtering out %s." % title
-                        del self.all_page_views[title]
-                        self.skipped_counts += 1
+                filtered_count = self.cursor.execute("SELECT count() FROM articles WHERE title LIKE ?", (rule,)).fetchone()[0]
 
-
-    def process(self):
-        self.sorted_page_views = [(self.all_page_views[title], title) for title in self.all_page_views]
-        self.sorted_page_views.sort(reverse=True)
+                if filtered_count:
+                    self.skipped_counts += filtered_count
+                    print u"Filtering %d titles under %s..." % (filtered_count, rule)
+                    self.cursor.execute("DELETE FROM articles WHERE title LIKE ?", (rule,))
+                    self.db_conn.commit()
+                else:
+                    print "Skipping rule %s.  No results found." % rule
 
     def output(self):
-        total_views = sum(self.all_page_views.values())
         output_text = u""
+        total_titles = self.cursor.execute("SELECT count() FROM articles").fetchone()[0]
+        top_ten_query = self.cursor.execute("SELECT * FROM articles ORDER BY views DESC LIMIT 10")
         print "Badly-encoded counts:", self.bad_counts
         print "Filtered counts:", self.skipped_counts
-        print "Total views:", total_views
-        print "Total titles:", len(self.all_page_views)
-        for views, title in self.sorted_page_views[0:10]:
+        print "Total titles:", total_titles
+        for title, views in top_ten_query:
             utf8_title = title.encode('utf-8')
             quoted_title = urllib.quote(utf8_title)
             url = "https://ar.wikipedia.org/wiki/" + quoted_title
@@ -120,7 +142,8 @@ class ProcessEZ:
 if __name__ == "__main__":
     script = ProcessEZ(sys.argv[1:])
     script.scan()
-    script.process()
+    print "Filtering results..."
+    script.filter_titles()
     output_text = script.output()
     print output_text.strip() # Remove the last new line.
     print "Sending email..."
