@@ -10,3 +10,5 @@ for i in `seq 2 8`; do
     AR_FILENAME=$(echo $FILENAME | cut -d. -f1).ar
     rm -v $FILENAME $AR_FILENAME
 done
+
+rm -v $(date --date="-1 day" +process-ez-%Y-%m-%d.sql)
