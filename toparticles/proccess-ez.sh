@@ -27,22 +27,16 @@ for i in `seq 7`; do
    AR_FILENAME=$(echo $FILENAME | cut -d. -f1).ar
    ALL_FILENAMES="$ALL_FILENAMES $AR_FILENAME"
    if [ -a $AR_FILENAME ]; then
-       echo $AR_FILENAME exists. Skipping.
+       echo $(date "+%Y-%m-%d %H:%M:%S") - $AR_FILENAME exists. Skipping.
        continue
    fi
    URL=http://dumps.wikimedia.org/other/pagecounts-ez/merged/$(date --date="-$i day" +%Y/%Y-%m)/$FILENAME
-   echo Downloading $URL...
+   echo $(date "+%Y-%m-%d %H:%M:%S") - Downloading $URL...
    wget -c -nv $URL
-   echo Filtering $FILENAME...
+   echo $(date "+%Y-%m-%d %H:%M:%S") - Filtering $FILENAME...
    nice -n 19 bzip2 -scd $FILENAME | grep -i "^ar\.z " >  $AR_FILENAME
 done
 
 nice -n 19 python proccess-ez.py $ALL_FILENAMES
-
-for i in `seq 7`; do
-   FILENAME=$(date --date="-$i day" +pagecounts-%Y-%m-%d.bz2)
-   AR_FILENAME=$(echo $FILENAME | cut -d. -f1).ar
-   rm -v $FILENAME $AR_FILENAME
-done
 
 echo End: $(date)
