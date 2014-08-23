@@ -37,6 +37,6 @@ for i in `seq 7`; do
    nice -n 19 bzip2 -scd $FILENAME | grep -i "^ar\.z " >  $AR_FILENAME
 done
 
-nice -n 19 python proccess-ez.py $ALL_FILENAMES
+nice -n 19 python process-ez.py $ALL_FILENAMES
 
 echo End: $(date)
