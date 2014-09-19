@@ -83,11 +83,11 @@ class ProcessEZ:
 
                 if title_filter:
                     self.skipped_counts += filtered_count
-                    print u"Filtering %d titles under %s..." % (filtered_count, rule)
+                    print u"Filtering {0} titles under {1}...".format(filtered_count, rule).encode('utf-8')
                     self.cursor.execute("DELETE FROM articles WHERE title LIKE ?", (title_filter + u"%",))
                     self.db_conn.commit()
                 else:
-                    print "Skipping rule %s.  No results found." % rule
+                    print "Skipping rule {0}.  No results found.".format(rule).encode('utf-8')
 
             elif rule.startswith('*'):
                 title_filter = rule.lstrip('*')
@@ -95,35 +95,38 @@ class ProcessEZ:
 
                 if title_filter:
                     self.skipped_counts += filtered_count
-                    print u"Filtering %d titles under %s..." % (filtered_count, rule)
+                    print u"Filtering {0} titles under {1}...".format(filtered_count, rule).encode('utf-8')
                     self.cursor.execute("DELETE FROM articles WHERE title LIKE ?", (u"%" + title_filter,))
                     self.db_conn.commit()
                 else:
-                    print "Skipping rule %s.  No results found." % rule
+                    print u"Skipping rule {0}.  No results found.".format(rule).encode('utf-8')
 
             elif rule: # if rule isn't an empty line
                 filtered_count = self.cursor.execute("SELECT count() FROM articles WHERE title LIKE ?", (rule,)).fetchone()[0]
 
                 if filtered_count:
                     self.skipped_counts += filtered_count
-                    print u"Filtering %d titles under %s..." % (filtered_count, rule)
+                    print u"Filtering {0} titles under {1}...".format(filtered_count, rule).encode('utf-8')
                     self.cursor.execute("DELETE FROM articles WHERE title LIKE ?", (rule,))
                     self.db_conn.commit()
                 else:
-                    print "Skipping rule %s.  No results found." % rule
+                    print u"Skipping rule {0}.  No results found.".format(rule).encode('utf-8')
 
     def output(self):
         output_text = u""
         total_titles = self.cursor.execute("SELECT count() FROM articles").fetchone()[0]
         top_ten_query = self.cursor.execute("SELECT * FROM articles ORDER BY views DESC LIMIT 10")
+
         print "Badly-encoded counts:", self.bad_counts
         print "Filtered counts:", self.skipped_counts
         print "Total titles:", total_titles
+
         for title, views in top_ten_query:
             utf8_title = title.encode('utf-8')
             quoted_title = urllib.quote(utf8_title)
             url = "https://ar.wikipedia.org/wiki/" + quoted_title
             output_text += "%s %s\n%s\n" % (views, title, url)
+
         return output_text
 
     def send_email(self, output_text):
@@ -144,7 +147,7 @@ if __name__ == "__main__":
     script.scan()
     print "Filtering results..."
     script.filter_titles()
-    output_text = script.output()
+    output_text = script.output().encode('utf-8')
     print output_text.strip() # Remove the last new line.
     print "Sending email..."
     script.send_email(output_text)
