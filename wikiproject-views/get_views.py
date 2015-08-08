@@ -126,29 +126,47 @@ class GetViews:
 
 
     def store_article(self, ar_article, en_article):
-        # Checking the Arabic article
-        ar_revid = ar_article.oldest_revision.revid
-        ar_article_query =  self.db_conn.execute("SELECT id, title FROM ar_articles WHERE oldest_revid=?", (ar_revid,)).fetchone()
-        if ar_article_query:
-            stored_title = ar_article_query['title']
-            ar_article_id = ar_article_query['id']
-            if ar_article.title() != stored_title:
+        # First, we should look for the title if it is there, it's
+        # most likely the same page we have been dealing with so don't
+        # waste time.  If we cannot find the title, we would fetch the
+        # oldest revision ID which is the most stable way to keep
+        # track of an article.  If we find it, it means that the title
+        # has only changed, and we should update our title.  If not,
+        # it means that the article hasn't been recorded previously,
+        # so we would like to record it.
+        #
+        # Checking the Arabic article.  
+        ar_title_query =  self.db_conn.execute("SELECT id FROM ar_articles WHERE title=?", (ar_article.title(),)).fetchone()
+        if not ar_title_query:
+            print "Couldn't find a title for", ar_article.title()
+            ar_revid = ar_article.oldest_revision.revid
+            ar_revid_query =  self.db_conn.execute("SELECT id, title FROM ar_articles WHERE oldest_revid=?", (ar_revid,)).fetchone()
+            if ar_revid_query:
+                stored_title = ar_revid_query['title']
+                ar_article_id = ar_revid_query['id']
                 print u"{} became {}! Updating...".format(stored_title, ar_article.title())
                 self.db_conn.execute("UPDATE ar_articles SET title=? WHERE oldest_revid=?", (ar_article.title(), ar_revid))
+            else:
+                print "Couldn't find a revid for", ar_article.title()
+                self.db_conn.execute("INSERT INTO ar_articles VALUES (?, ?, ?)", (None, ar_article.title(), ar_revid))
+                ar_article_id = self.db_conn.execute("SELECT last_insert_rowid();").fetchone()[0]
         else:
-            self.db_conn.execute("INSERT INTO ar_articles VALUES (?, ?, ?)", (None, ar_article.title(), ar_revid))
-            ar_article_id = self.db_conn.execute("SELECT last_insert_rowid();").fetchone()[0]
+            ar_article_id = ar_title_query['id']
 
         # Checking the English article
-        en_revid = en_article.oldest_revision.revid
-        en_article_query =  self.db_conn.execute("SELECT title FROM en_articles WHERE oldest_revid=?", (en_revid,)).fetchone()
-        if en_article_query:
-            stored_title = en_article_query['title']
-            if en_article.title() != stored_title:
+        en_title_query =  self.db_conn.execute("SELECT id FROM en_articles WHERE title=?", (en_article.title(),)).fetchone()
+        if not en_title_query:
+            print "Couldn't find a title for", en_article.title()
+            en_revid = en_article.oldest_revision.revid
+            en_revid_query =  self.db_conn.execute("SELECT id, title FROM en_articles WHERE oldest_revid=?", (en_revid,)).fetchone()
+            if en_revid_query:
+                stored_title = en_revid_query['title']
+                en_article_id = en_revid_query['id']
                 print u"{} became {}! Updating...".format(stored_title, en_article.title())
                 self.db_conn.execute("UPDATE en_articles SET title=? WHERE oldest_revid=?", (en_article.title(), en_revid))
-        else:
-            self.db_conn.execute("INSERT INTO en_articles VALUES (?, ?, ?, ?)", (None, en_article.title(), ar_article_id, en_revid))
+            else:
+                print "Couldn't find a revid for", en_article.title()
+                self.db_conn.execute("INSERT INTO en_articles VALUES (?, ?, ?, ?)", (None, en_article.title(), ar_article_id, en_revid))
 
         self.db_conn.commit()
 
@@ -251,7 +269,7 @@ class GetViews:
 
 if __name__ == '__main__':
     script = GetViews()
-    arguments = sys.argv
+    arguments = sys.argv[1:]
     non_option_arguments = [argument for argument in arguments
                                      if not argument.startswith('-')]
 
