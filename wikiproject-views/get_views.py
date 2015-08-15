@@ -1,12 +1,12 @@
 # -*- coding: utf-8  -*-
-import bz2
 import datetime
 import os
 import sqlite3
 import re
 import sys
-import pywikibot
 import urllib
+
+import pywikibot
 from pywikibot import pagegenerators
 
 
@@ -14,8 +14,14 @@ class GetViews:
     def __init__(self):
         # Database
         self.db_filename = "page_views.sqlite3"
+        existing_database = os.path.exists(self.db_filename)
+
         self.db_conn = sqlite3.connect(self.db_filename)
         self.db_conn.row_factory = sqlite3.Row
+
+        if not existing_database:
+            print "Initiating the database..."
+            self.initiate_database()
 
         # Wikipedia
         self.en_site = pywikibot.Site('en')
@@ -31,6 +37,8 @@ class GetViews:
         for i in range(1, 8):
             date = datetime.datetime.utcnow() - datetime.timedelta(i)
             self.dates.append(date)
+        self.ar_re = re.compile(r'^ar(?:\.zero|\.m)?$', re.I)
+        self.en_re = re.compile(r'^en(?:\.zero|\.m)?$', re.I)
 
         # CONFIG
         self.ez_dir = 'stat-files/'
@@ -40,8 +48,8 @@ class GetViews:
     def initiate_database(self):
         self.db_conn.execute("CREATE TABLE ar_articles (id INTEGER PRIMARY KEY AUTOINCREMENT, title TEXT);")
         self.db_conn.execute("CREATE TABLE en_articles (id INTEGER PRIMARY KEY AUTOINCREMENT, title TEXT, related_id INTEGER, FOREIGN KEY(related_id) REFERENCES articles(id));")
-        self.db_conn.execute("CREATE TABLE ar_day_views (article_id INTEGER, date TEXT, views INTEGER, FOREIGN KEY(article_id) REFERENCES ar_articles(id));")
-        self.db_conn.execute("CREATE TABLE en_day_views (article_id INTEGER, date TEXT, views INTEGER, FOREIGN KEY(article_id) REFERENCES en_articles(id));")
+        self.db_conn.execute("CREATE TABLE ar_day_views (article_id INTEGER, date TEXT, access_point TEXT, views INTEGER, FOREIGN KEY(article_id) REFERENCES ar_articles(id));")
+        self.db_conn.execute("CREATE TABLE en_day_views (article_id INTEGER, date TEXT, access_point TEXT, views INTEGER, FOREIGN KEY(article_id) REFERENCES en_articles(id));")
 
     def get_pages(self, start_after=None):
         off = True
@@ -72,28 +80,29 @@ class GetViews:
                     ar_article = pywikibot.Page(self.ar_site, item.sitelinks['arwiki'])
                     yield ar_article, en_article
 
-    def process_ez(self, filename):
-        date = "".join(re.findall("(\d{4})-(\d{2})-(\d{2})", filename)[0])
-        archive = bz2.BZ2File(self.ez_dir + filename)
-        print u"Scanning %s of %s..." % (filename, date)
-        for line in archive:
+    def process_all_sites(self, date):
+        print u"Scanning %s..." % date
+
+        # After the last record of the English Wikipedia, we should
+        # stop scanning because the rest of the file is not of our
+        # interest.
+
+        en = False
+
+        for line in sys.stdin:
             article_data = line.split(' ')
 
             # Extract language
-            if article_data[0].lower().startswith('ar'):
+            if re.match(self.ar_re, article_data[0]):
                 lang = 'ar'
-            elif article_data[0].lower().startswith('en'):
+            elif re.match(self.en_re, article_data[0]):
+                if en is False:
+                    en = True
                 lang = 'en'
-
-            # Let's skip titles with spaces.  They all will end-up
-            # with underscores.
-            if '%20' in article_data[1]:
-                continue
-
-            # Let's skip titles with encoded '(' or ')'.  They all
-            # will end-up without encoding.
-            if '%28' in article_data[1] or \
-               '%29' in article_data[1]:
+            elif en is True:
+                print "We have reached the end of English Wikipedia records."
+                break
+            else:
                 continue
 
             # Normalize the article title
@@ -108,19 +117,38 @@ class GetViews:
             
             title = title.replace('_', ' ')
 
-            if lang == 'ar':            
-                select_statement = "SELECT id, title FROM ar_articles WHERE title = ?"
-                insert_statement = "INSERT INTO ar_day_views VALUES (?, ?, ?)"
+            if lang == 'ar':
+                select_article_statement = "SELECT id, title FROM ar_articles WHERE title=?"
+                previous_views_statement = "SELECT rowid, views FROM ar_day_views WHERE article_id=? AND access_point=? AND date=?"
+                insert_views_statement = "INSERT INTO ar_day_views VALUES (?, ?, ?, ?)"
+                update_views_statement = "UPDATE ar_day_views SET views=? WHERE rowid=?"
             elif lang == 'en':
-                select_statement = "SELECT id, title FROM en_articles WHERE title = ?"
-                insert_statement = "INSERT INTO en_day_views VALUES (?, ?, ?)"
+                select_article_statement = "SELECT id, title FROM en_articles WHERE title=?"
+                previous_views_statement = "SELECT rowid, views FROM ar_day_views WHERE article_id=? AND access_point=? AND date=?"
+                insert_views_statement = "INSERT INTO en_day_views VALUES (?, ?, ?, ?)"
+                update_views_statement = "UPDATE en_day_views SET views=? WHERE rowid=?"
     
-            is_included_query = self.db_conn.execute(select_statement, (title, )).fetchone()
+            is_included_query = self.db_conn.execute(select_article_statement, (title, )).fetchone()
             if is_included_query:
+                if article_data[0].endswith('.m'):
+                    access_point = 'm'
+                elif article_data[0].endswith('.zero'):
+                    access_point = 'zero'
+                else:
+                    access_point = ''
+
                 article_id = is_included_query['id']
-                views = int(article_data[2])
-                print is_included_query['title'], "has", views, "views."
-                self.db_conn.execute(insert_statement, (article_id, date, views))
+                new_views = int(article_data[2])
+                previous_view_query = self.db_conn.execute(previous_views_statement, (article_id, access_point, date)).fetchone()
+                if previous_view_query:
+                    previous_id = previous_view_query['rowid']
+                    previous_views = previous_view_query['views']
+                    total_views = previous_views + new_views
+                    print is_included_query['title'], "has", new_views, "new views (total: %d)." % total_views
+                    self.db_conn.execute(update_views_statement, (total_views, previous_id))
+                else:
+                    print is_included_query['title'], "has", new_views, "new views."
+                    self.db_conn.execute(insert_views_statement, (article_id, date, access_point, new_views))
 
         self.db_conn.commit()
 
@@ -273,10 +301,6 @@ if __name__ == '__main__':
     non_option_arguments = [argument for argument in arguments
                                      if not argument.startswith('-')]
 
-    if not os.path.exists(script.db_filename):
-        print "Initiating the database..."
-        script.initiate_database()
-
     if '-a' in arguments: #a for articles
         if len(non_option_arguments) >= 1:
             start_after = non_option_arguments[0]
@@ -285,12 +309,12 @@ if __name__ == '__main__':
         print "Extracting articles from %s..." % script.category_title
         for ar_article, en_article in script.get_pages(start_after):
             script.store_article(ar_article, en_article)
-    elif '-v' in arguments: #v for views
-        filenames = []
-        now = datetime.datetime.utcnow()
-        for date in self.dates:
-            filename = datetime.datetime.strftime(date, "pagecounts-%Y-%m-%d.stripped.bz2")
-            script.process_ez(filename)
+    elif '-v' in arguments: #v for views 
+        date_argument = [argument for argument in  non_option_arguments
+                         if re.match("\d{8}", argument)]
+        if not date_argument:
+            sys.exit("No date was supplied.")
+        script.process_all_sites(date_argument[0])
     elif '-c' in arguments: #c for cleanup
         script.cleanup()
     elif '-t' in arguments: #t for table
