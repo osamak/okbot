@@ -124,7 +124,7 @@ class GetViews:
                 update_views_statement = "UPDATE ar_day_views SET views=? WHERE rowid=?"
             elif lang == 'en':
                 select_article_statement = "SELECT id, title FROM en_articles WHERE title=?"
-                previous_views_statement = "SELECT rowid, views FROM ar_day_views WHERE article_id=? AND access_point=? AND date=?"
+                previous_views_statement = "SELECT rowid, views FROM en_day_views WHERE article_id=? AND access_point=? AND date=?"
                 insert_views_statement = "INSERT INTO en_day_views VALUES (?, ?, ?, ?)"
                 update_views_statement = "UPDATE en_day_views SET views=? WHERE rowid=?"
     
